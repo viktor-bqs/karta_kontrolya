@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Карта обращений</title>
+<style>
+  @font-face {
+    font-family: 'MyFont';
+    src: url('fonts/BebasNeueCyrillic.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    color: #2a2a2a;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .page { flex: 1; padding: 32px; max-width: 1400px; margin: 0 auto; width: 100%; }
+
+  .hero {
+    position: relative;
+    background: url('https://gorod.mos.ru/images/backgrounds/ng-bg-light-17.png') center/cover no-repeat;
+    background-color: #e8f0f5;
+    border-radius: 28px;
+    padding: 48px;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0, 111, 151, 0.08);
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0.08) 100%);
+    pointer-events: none;
+  }
+  .hero > * { position: relative; z-index: 1; }
+
+  .hero-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 40px;
+    margin-bottom: 40px;
+    flex-wrap: wrap;
+  }
+  .hero-title-block { max-width: 520px; flex: 1 1 280px; }
+  .hero-title {
+    font-family: 'MyFont', 'Bebas Neue', sans-serif;
+    color: #006f97;
+    font-size: clamp(44px, 8vw, 92px);
+    line-height: 0.95;
+    letter-spacing: 1px;
+    margin-bottom: 16px;
+    font-weight: 400;
+  }
+  .hero-subtitle {
+    color: #2a4a5c;
+    font-size: 17px;
+    line-height: 1.5;
+    max-width: 440px;
+    margin-bottom: 24px;
+  }
+
+  .cta-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    background: #006f97;
+    color: #ffffff;
+    font-family: 'MyFont', 'Bebas Neue', sans-serif;
+    font-size: 26px;
+    letter-spacing: 1.5px;
+    padding: 16px 40px;
+    border-radius: 14px;
+    text-decoration: none;
+    transition: background 0.2s, transform 0.15s;
+    box-shadow: 0 6px 20px rgba(0, 111, 151, 0.25);
+    font-weight: 400;
+  }
+  .cta-btn:hover { background: #00557a; transform: translateY(-2px); }
+  .cta-btn svg { width: 22px; height: 22px; flex-shrink: 0; }
+
+  .methods-card {
+    background: rgba(255, 255, 255, 0.35);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: 20px;
+    padding: 24px 28px;
+    min-width: 340px;
+    flex: 1 1 340px;
+    max-width: 440px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.04);
+  }
+  .methods-title {
+    font-family: 'MyFont', 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    letter-spacing: 1px;
+    color: #006f97;
+    margin-bottom: 16px;
+    text-transform: uppercase;
+    font-weight: 400;
+  }
+  .method-row {
+    display: grid;
+    grid-template-columns: 32px 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(0, 111, 151, 0.12);
+  }
+  .method-row:last-child { border-bottom: none; }
+  .method-logo { width: 32px; height: 32px; object-fit: contain; }
+  .method-name { font-size: 13px; color: #2a4a5c; line-height: 1.3; }
+  .method-count {
+    font-family: 'MyFont', 'Bebas Neue', sans-serif;
+    font-size: 26px;
+    color: #006f97;
+    line-height: 1;
+    font-weight: 400;
+  }
+
+  .agencies-header {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  .agencies-title {
+    font-family: 'MyFont', 'Bebas Neue', sans-serif;
+    font-size: clamp(24px, 4vw, 36px);
+    letter-spacing: 1px;
+    color: #006f97;
+    text-transform: uppercase;
+    font-weight: 400;
+  }
+  .agencies-total { font-size: 14px; color: #5b7583; }
+  .agencies-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+  }
+  .agency-card {
+    background: rgba(255, 255, 255, 0.35);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: 18px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    transition: transform 0.15s, background 0.2s;
+  }
+  .agency-card:hover { transform: translateY(-2px); background: rgba(255, 255, 255, 0.5); }
+  .agency-emblem {
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+  }
+  .agency-emblem img {
+    max-width: 64px;
+    max-height: 48px;
+    object-fit: contain;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.08));
+  }
+  .agency-name { font-size: 13px; line-height: 1.35; color: #2a4a5c; min-height: 52px; }
+  .agency-count-row { display: flex; align-items: baseline; gap: 6px; margin-top: auto; }
+  .agency-count {
+    font-family: 'MyFont', 'Bebas Neue', sans-serif;
+    font-size: 32px;
+    color: #006f97;
+    line-height: 1;
+    font-weight: 400;
+  }
+  .agency-count-label { font-size: 12px; color: #5b7583; }
+
+  .footer {
+    background: #0b2d4a;
+    padding: 24px 32px;
+    text-align: center;
+  }
+  .footer p {
+    color: #8596a5;
+    font-size: 13px;
+    line-height: 1.65;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  .footer p + p { margin-top: 2px; }
+
+  .photo-source-toggle {
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
+  }
+  .toggle-btn {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(133,150,165,0.4);
+    color: #8596a5;
+    font-family: 'MyFont', 'Bebas Neue', sans-serif;
+    font-size: 16px;
+    letter-spacing: 0.5px;
+    padding: 8px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: 0.2s;
+  }
+  .toggle-btn:hover {
+    background: rgba(255,255,255,0.15);
+    border-color: rgba(255,255,255,0.4);
+    color: #fff;
+  }
+
+  @media (max-width: 900px) {
+    .page { padding: 16px; }
+    .hero { padding: 22px; border-radius: 22px; }
+    .hero-top { gap: 24px; margin-bottom: 28px; }
+    .hero-subtitle { font-size: 15px; margin-bottom: 20px; }
+    .cta-btn { font-size: 22px; padding: 14px 32px; }
+    .methods-card { min-width: auto; max-width: none; width: 100%; padding: 20px; }
+    .method-logo { width: 28px; height: 28px; }
+    .method-row { grid-template-columns: 28px 1fr auto; gap: 10px; padding: 9px 0; }
+    .method-count { font-size: 22px; }
+    .agencies-title { font-size: 26px; }
+    .agencies-total { font-size: 13px; width: 100%; }
+    .agencies-row { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+    .agency-card { padding: 16px; border-radius: 14px; gap: 10px; }
+    .agency-emblem { height: 40px; }
+    .agency-emblem img { max-height: 40px; max-width: 56px; }
+    .agency-name { font-size: 12px; min-height: 48px; }
+    .agency-count { font-size: 28px; }
+    .agency-count-label { font-size: 11px; }
+    .footer { padding: 20px 16px; }
+    .footer p { font-size: 12px; }
+    .toggle-btn { font-size: 14px; padding: 7px 16px; }
+  }
+
+  @media (max-width: 480px) {
+    .hero { padding: 18px; }
+    .methods-card { padding: 16px; }
+    .method-name { font-size: 12px; }
+    .method-count { font-size: 20px; }
+    .agencies-row { grid-template-columns: repeat(auto-fill, minmax(135px, 1fr)); }
+    .agency-card { padding: 14px; }
+    .agency-name { font-size: 11px; min-height: 44px; }
+    .agency-count { font-size: 26px; }
+    .cta-btn { width: 100%; justify-content: center; font-size: 20px; padding: 14px 24px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <section class="hero">
+    <div class="hero-top">
+      <div class="hero-title-block">
+        <h1 class="hero-title">Карта<br>обращений</h1>
+        <p class="hero-subtitle">Городские нарушения, обращения в органы власти и результаты их рассмотрения — на одной карте.</p>
+
+        <a href="map.html" class="cta-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+            <circle cx="12" cy="10" r="3"></circle>
+          </svg>
+          Перейти к карте
+        </a>
+      </div>
+
+      <aside class="methods-card">
+        <div class="methods-title">Способ подачи</div>
+
+        <div class="method-row">
+          <img class="method-logo" src="img/logos/logo_gosuslugi.png" alt="">
+          <span class="method-name">Госуслуги. Решаем вместе</span>
+          <span class="method-count">11</span>
+        </div>
+        <div class="method-row">
+          <img class="method-logo" src="img/logos/logo_otkrytyi_region.png" alt="">
+          <span class="method-name">Открытый регион. Амурская область</span>
+          <span class="method-count">4</span>
+        </div>
+        <div class="method-row">
+          <img class="method-logo" src="img/logos/logo_chestnyi_znak.png" alt="">
+          <span class="method-name">Честный знак</span>
+          <span class="method-count">3</span>
+        </div>
+        <div class="method-row">
+          <img class="method-logo" src="img/logos/logo_inye_sposoby.png" alt="">
+          <span class="method-name">Иные способы, через сайты ведомств</span>
+          <span class="method-count">3</span>
+        </div>
+      </aside>
+    </div>
+
+    <div class="agencies-header">
+      <h2 class="agencies-title">Статистика по ведомствам</h2>
+      <span class="agencies-total">всего рассмотрено: 19</span>
+    </div>
+
+    <div class="agencies-row">
+      <div class="agency-card">
+        <div class="agency-emblem"><img src="img/logos/logo_blag.png" alt=""></div>
+        <div class="agency-name">Управление ЖКХ администрации г. Благовещенска</div>
+        <div class="agency-count-row"><span class="agency-count">5</span><span class="agency-count-label">обращений</span></div>
+      </div>
+      <div class="agency-card">
+        <div class="agency-emblem"><img src="img/logos/logo_rpn.png" alt=""></div>
+        <div class="agency-name">Управление Роспотребнадзора по Амурской области</div>
+        <div class="agency-count-row"><span class="agency-count">5</span><span class="agency-count-label">обращений</span></div>
+      </div>
+      <div class="agency-card">
+        <div class="agency-emblem"><img src="img/logos/logo_blag.png" alt=""></div>
+        <div class="agency-name">Администрация г. Благовещенска</div>
+        <div class="agency-count-row"><span class="agency-count">5</span><span class="agency-count-label">обращения</span></div>
+      </div>
+      <div class="agency-card">
+        <div class="agency-emblem"><img src="img/logos/logo_mihaylovskiy.png" alt=""></div>
+        <div class="agency-name">Администрация Михайловского муниципального округа</div>
+        <div class="agency-count-row"><span class="agency-count">1</span><span class="agency-count-label">обращение</span></div>
+      </div>
+      <div class="agency-card">
+        <div class="agency-emblem"><img src="img/logos/logo_mintrans.png" alt=""></div>
+        <div class="agency-name">Министерство транспорта и дорожного хозяйства Амурской области</div>
+        <div class="agency-count-row"><span class="agency-count">1</span><span class="agency-count-label">обращение</span></div>
+      </div>
+      <div class="agency-card">
+        <div class="agency-emblem"><img src="img/logos/logo_rkn.png" alt=""></div>
+        <div class="agency-name">Управление Роскомнадзора по Амурской области</div>
+        <div class="agency-count-row"><span class="agency-count">1</span><span class="agency-count-label">обращение</span></div>
+      </div>
+      <div class="agency-card">
+        <div class="agency-emblem"><img src="img/logos/logo_prokuratura.png" alt=""></div>
+        <div class="agency-name">Прокуратура г. Благовещенска</div>
+        <div class="agency-count-row"><span class="agency-count">1</span><span class="agency-count-label">обращение</span></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<footer class="footer">
+  <p>Статистика по способам отправки ведётся по способу подачи первоначального обращения, без учёта его дальнейшего перенаправления.</p>
+  <p>Статистика по ведомствам ведётся по органу, окончательно рассмотревшему обращение.</p>
+  <p>Если по одному вопросу было написано несколько обращений, указывается число фактически написанных обращений.</p>
+  <p>В настоящем указаны не все обращения.</p>
+  <div class="photo-source-toggle">
+    <button id="togglePhotoSource" class="toggle-btn">Фото: Pinterest</button>
+  </div>
+</footer>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    var btn = document.getElementById('togglePhotoSource');
+    function updateBtn() {
+      var src = localStorage.getItem('photoSource') || 'pinterest';
+      btn.textContent = src === 'local' ? 'Фото: локальные (нажми для Pinterest)' : 'Фото: Pinterest (нажми для локальных)';
+    }
+    updateBtn();
+    btn.addEventListener('click', function() {
+      var current = localStorage.getItem('photoSource') || 'pinterest';
+      var next = current === 'local' ? 'pinterest' : 'local';
+      localStorage.setItem('photoSource', next);
+      updateBtn();
+    });
+  });
+</script>
+
+</body>
+</html>
