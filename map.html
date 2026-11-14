@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Карта — Карта обращений</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+<style>
+  @font-face {
+    font-family: 'MyFont';
+    src: url('fonts/BebasNeueCyrillic.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: Arial, sans-serif; background: #f0f0f0; }
+  #map { height: 100vh; width: 100%; }
+
+  .back-to-main {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    z-index: 1000;
+    background: #ffffff;
+    border: 2px solid rgba(0,0,0,0.15);
+    border-radius: 10px;
+    padding: 10px 18px;
+    font-family: 'MyFont', 'Bebas Neue', sans-serif;
+    font-size: 18px;
+    letter-spacing: 0.5px;
+    color: #006f97;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+    transition: 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+  }
+  .back-to-main:hover { background: #f5f9fb; transform: translateY(-1px); }
+
+  #details-panel {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: white;
+    z-index: 9999;
+    overflow-y: auto;
+    padding: 20px;
+    box-shadow: 0 0 30px rgba(0,0,0,0.5);
+  }
+  #details-panel .close-btn {
+    background: #e74c3c;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    font-size: 18px;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-bottom: 20px;
+  }
+  #details-panel .close-btn:hover { background: #c0392b; }
+  #details-panel h1 { font-size: 28px; margin-bottom: 10px; }
+  #details-panel .description {
+    font-size: 18px;
+    line-height: 1.6;
+    margin-bottom: 10px;
+    white-space: pre-line;
+  }
+  #details-panel .authority {
+    font-size: 18px;
+    margin-bottom: 15px;
+    color: #2c3e50;
+    background: #ecf0f1;
+    padding: 8px 12px;
+    border-radius: 5px;
+    display: inline-block;
+  }
+  #details-panel .photos { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; }
+  #details-panel .photo-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    max-width: 200px;
+  }
+  #details-panel .photo-item img {
+    width: 100%;
+    height: auto;
+    max-height: 150px;
+    object-fit: cover;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    cursor: pointer;
+    transition: transform 0.2s;
+  }
+  #details-panel .photo-item img:hover { transform: scale(1.05); }
+  #details-panel .photo-item .label {
+    margin-top: 5px;
+    font-size: 14px;
+    color: #555;
+    font-weight: bold;
+    text-align: center;
+  }
+  #details-panel .photo-item .label-missing {
+    margin-top: 5px;
+    font-size: 14px;
+    color: #999;
+    font-style: italic;
+    text-align: center;
+  }
+  .status-badge {
+    display: inline-block;
+    padding: 8px 16px;
+    border-radius: 20px;
+    color: white;
+    font-weight: bold;
+    margin-top: 10px;
+  }
+  .status-completed { background: #27ae60; }
+  .status-in-progress { background: #f39c12; }
+  .status-not-sent { background: #95a5a6; }
+
+  #lightbox {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.9);
+    z-index: 10000;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+  }
+  #lightbox img {
+    max-width: 90%;
+    max-height: 90%;
+    border-radius: 8px;
+    box-shadow: 0 0 30px rgba(255,255,255,0.3);
+  }
+  #lightbox .close-lightbox {
+    position: absolute;
+    top: 20px;
+    right: 30px;
+    color: white;
+    font-size: 40px;
+    font-weight: bold;
+    cursor: pointer;
+    user-select: none;
+  }
+  #lightbox .close-lightbox:hover { color: #ccc; }
+
+  .nav-btn {
+    position: absolute;
+    bottom: 30px;
+    right: 30px;
+    z-index: 1000;
+    background: white;
+    border: 2px solid rgba(0,0,0,0.2);
+    border-radius: 5px;
+    padding: 8px 12px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    display: none;
+    transition: 0.2s;
+  }
+  .nav-btn:hover { background: #f0f0f0; }
+  .nav-btn.show { display: block; }
+  #btn-to-poyarkovo { bottom: 90px; }
+
+  .linked-btn {
+    display: inline-block;
+    background: #2980b9;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    margin-right: 10px;
+    margin-top: 10px;
+    transition: 0.2s;
+  }
+  .linked-btn:hover { background: #1f618d; }
+  .linked-section { margin-top: 20px; }
+
+  @media (max-width: 600px) {
+    .back-to-main { font-size: 15px; padding: 8px 14px; top: 10px; left: 10px; }
+  }
+</style>
+</head>
+<body>
+
+<a href="index.html" class="back-to-main">← На главную</a>
+
+<div id="map"></div>
+
+<button id="btn-to-poyarkovo" class="nav-btn">📍 Показать Поярково</button>
+<button id="btn-back" class="nav-btn">⬅ Вернуться</button>
+
+<div id="details-panel">
+  <button class="close-btn" onclick="goBack()" id="back-btn">✕ Закрыть</button>
+  <h1 id="detail-title"></h1>
+  <div class="description" id="detail-description"></div>
+  <div id="detail-authority" class="authority"></div>
+  <div class="photos" id="detail-photos"></div>
+  <div id="detail-status"></div>
+  <div class="linked-section" id="linked-section"></div>
+</div>
+
+<div id="lightbox" onclick="closeLightbox()">
+  <span class="close-lightbox" onclick="closeLightbox()">&times;</span>
+  <img id="lightbox-img" src="" alt="Увеличенное фото">
+</div>
+
+<script>
+  // ===================== ВСЕ ТОЧКИ =====================
+  var violations = [
+    {
+      id: 1,
+      lat: 50.270233,
+      lng: 127.531510,
+      title: "Флаг РФ",
+      description: "Флаг РФ должен располагаться левее центра, согласно 1-ФКЗ \"О Государственном флаге Российской Федерации\", на фасаде же ТЦ \"Парк\" он располагается правее центра.",
+      authority: "Администрация г. Благовещенска (Управление по развитию потребительского рынка и услуг)",
+      status: "completed",
+      photos: [
+        { url: "https://i.pinimg.com/736x/d4/a8/29/d4a829f8195bbfa475410be5fb75d41c.jpg", localUrl: "img/points/id1_do.jpg", label: "ДО" },
+        { url: "https://i.pinimg.com/736x/1d/ce/07/1dce07a125a2036e402765467e2b7bd1.jpg", localUrl: "img/points/id1_posle.jpg", label: "ПОСЛЕ" },
+        { url: "https://i.pinimg.com/736x/84/e2/31/84e231778e697f14eb37787d44bd6ffb.jpg", localUrl: "img/points/id1_otvet.jpg", label: "ОТВЕТ ВЛАСТИ" }
+      ]
+    },
+    {
+      id: 2,
+      lat: 50.263662,
+      lng: 127.538597,
+      title: "Флаг РФ",
+      description: "Флаг РФ должен располагаться слева от другого флага, согласно 1-ФКЗ \"О Государственном флаге Российской Федерации\", на фасаде же военкомата он справа от флага Амурской области.",
+      authority: "Военный комиссариат г. Благовещенска и Благовещенского района",
+      status: "completed",
+      photos: [
+        { url: "https://i.pinimg.com/736x/88/46/5f/88465f6b71bb87ecf1351bf8a7097020.jpg", localUrl: "img/points/id2_do.jpg", label: "ДО" },
+        { url: "https://i.pinimg.com/736x/cc/9f/f9/cc9ff96233c56ed8895a3641b107b3c7.jpg", localUrl: "img/points/id2_posle.jpg", label: "ПОСЛЕ" },
+        { label: "ОТВЕТ ВЛАСТИ", missing: true, text: "Прошло более 30 дней, ответ не предоставлен." }
+      ]
+    },
+    {
+      id: 3,
+      lat: 50.262438,
+      lng: 127.570215,
+      title: "Неисправный светофор",
+      description: "У светофорного объекта не работает зелёный сигнал.",
+      authority: "Управление жилищно-коммунального хозяйства администрации г. Благовещенска",
+      status: "completed",
+      photos: [
+        { url: "https://i.pinimg.com/736x/9a/0f/77/9a0f77d13f0fb7ba5322789b90b8f82a.jpg", localUrl: "img/points/id3_do.jpg", label: "ДО" },
+        { url: "https://i.pinimg.com/736x/96/20/5e/96205e1a0822eface14d3b43030f68bf.jpg", localUrl: "img/points/id3_otvet.jpg", label: "ОТВЕТ ВЛАСТИ" },
+        { label: "ПОСЛЕ", missing: true, text: "Мне лень делать фото. Но там всё норм :)" }
+      ]
+    },
+    {
+      id: 4,
+      lat: 50.271154,
+      lng: 127.557017,
+      title: "Вывески Ozon",
+      description: "По Правилам благоустройства города Благовещенска каждое юр.лицо или ИП могут устанавливать только одну вывеску. То есть, один магазин — одна вывеска. Тут же их явно больше чем одна.\n\n• Администрация обязала ПВЗ убрать 3 лишние конструкции. Однако, убрана лишь одна.\n• ИП демонтировал все несанкционированные конструкции.",
+      authority: "Администрация г. Благовещенска (отдел городского дизайна)",
+      status: "completed",
+      photos: [
+        { url: "https://i.pinimg.com/736x/e6/e3/13/e6e3133b7626d6e888f08d9f7f66a313.jpg", localUrl: "img/points/id4_do.jpg", label: "ДО" },
+        { url: "https://i.pinimg.com/736x/82/5e/74/825e74b79794cf4b44e540dd80cbb0be.jpg", localUrl: "img/points/id4_promezhutochnoe_foto.jpg", label: "Промежуточное фото" },
+        { url: "https://i.pinimg.com/736x/30/20/24/302024cb5b94a4375cb40d5d78d2101d.jpg", localUrl: "img/points/id4_promezhutochniy_otvet.jpg", label: "Промежуточный ответ" },
+        { url: "https://i.pinimg.com/736x/d5/91/e4/d591e436f177b0617138bba0bdedaae9.jpg", localUrl: "img/points/id4_otvet.jpg", label: "Ответ" },
+        { url: "https://i.pinimg.com/736x/77/e4/f3/77e4f30210702e02e1c64449aa664056.jpg", localUrl: "img/points/id4_zameniayushiy_otvet.jpg", label: "Заменяющий ответ" },
+        { url: "https://i.pinimg.com/736x/b4/f5/c9/b4f5c9c91a1cb7412a8c1bcc8488021e.jpg", localUrl: "img/points/id4_posle.jpg", label: "ПОСЛЕ" }
+      ],
+      linkedIds: [101, 102]
+    },
+    {
+      id: 5,
+      lat: 50.277544,
+      lng: 127.554286,
+      title: "Неисправный светофор",
+      description: "У светофорного объекта не работает зелёный сигнал",
+      authority: "Управление жилищно-коммунального хозяйства администрации г. Благовещенска",
+      status: "completed",
+      photos: [
+        { url: "https://i.pinimg.com/736x/91/c1/2c/91c12ccf3369aa4fe78cf26543e095fd.jpg", localUrl: "img/points/id5_do.jpg", label: "ДО" },
+        { url: "https://i.pinimg.com/736x/17/a5/dd/17a5dd1a499600d014ffb6e754554f13.jpg", localUrl: "img/points/id5_otvet.jpg", label: "ОТВЕТ ВЛАСТИ" },
+        { label: "ПОСЛЕ", missing: true, text: "Мне лень делать фото. Но там всё норм :)" }
+      ]
+    },
+    {
+      id: 6,
+      lat: 50.262813,
+      lng: 127.566379,
+      title: "Съехавший знак",
+      description: "Дорожный знак \"Движение по полосам\" из-за ветра съехал, и висит не по центру полосы, на которую распространяется",
+      authority: "Управление жилищно-коммунального хозяйства администрации г. Благовещенска",
+      status: "completed",
+      photos: [
+        { url: "https://i.pinimg.com/736x/2d/a0/d4/2da0d4252ad6b61833ba6cbb44448576.jpg", localUrl: "img/points/id6_do.jpg", label: "ДО" },
+        { url: "https://i.pinimg.com/736x/1f/96/ac/1f96ac0a7b4e73d28082212811a88360.jpg", localUrl: "img/points/id6_otvet.jpg", label: "ОТВЕТ ВЛАСТИ" },
+        { label: "ПОСЛЕ", missing: true, text: "Мне лень делать фото. Но там всё норм :)" }
+      ]
+    },
+    {
+      id: 7,
+      lat: 49.621612,
+      lng: 128.631080,
+      title: "Дорожный знак \"Автобусная остановка\"",
+      description: "Дорожный знак \"Автобусная остановка\" ненадлежащим образом висит на опоре.",
+      authority: "Администрация Михайловского муниципального округа",
+      status: "completed",
+      photos: [
+        { url: "https://i.pinimg.com/736x/fc/b8/dc/fcb8dc954efcc6230f00499ba9348ecc.jpg", localUrl: "img/points/id7_do.jpg", label: "ДО" },
+        { url: "https://i.pinimg.com/736x/49/f0/eb/49f0eb1046a1bc2d99b8746ba6f8a00d.jpg", localUrl: "img/points/id7_otvet.jpg", label: "ОТВЕТ ВЛАСТИ" },
+        { label: "ПОСЛЕ", missing: true, text: "Мне лень делать фото. Но там всё норм :)" }
+      ]
+    },
+    {
+      id: 8,
+      lat: 50.250188,
+      lng: 127.563864,
+      title: "Кустарник закрывает Знак",
+      description: "Дерево, а именно вяз приземистый, заслоняет знак 2.4 «Уступи дорогу», что нарушает п. 13.13 Правил благоустройства г. Благовещенска, а именно на озеленённых территориях общего пользования запрещается закрытие ветвями деревьев и кустарников дорожных знаков.",
+      authority: "Управление жилищно-коммунального хозяйства администрации г. Благовещенска",
+      status: "completed",
+      photos: [
+        { url: "https://i.pinimg.com/736x/4d/d1/45/4dd145f3209d93c6241c23fd6ed7750c.jpg", localUrl: "img/points/id8_do.jpg", label: "ДО" },
+        { label: "ПОСЛЕ", missing: true, text: "Возможно там всё норм, но это не точно :)" },
+        { url: "https://i.pinimg.com/736x/08/31/87/083187901cc85a1b94ebfefc78402bc1.jpg", localUrl: "img/points/id8_otvet.jpg", label: "ОТВЕТ ВЛАСТИ" }
+      ]
+    },
+    {
+      id: 9,
+      lat: 50.265775,
+      lng: 127.535809,
+      title: "Опасно выступающая конструкция на тротуаре",
+      description: "На тротуаре выступает металлическая конструкция (видимо, остатки старого ограждения), которая создаёт препятствие для пешеходов и может стать причиной травм.",
+      authority: "Управление жилищно-коммунального хозяйства администрации г. Благовещенска",
+      status: "completed",
+      photos: [
+        { url: "https://i.pinimg.com/736x/07/e0/05/07e0052a9d9703271edb1ddf672e3db9.jpg", localUrl: "img/points/id9_do.jpg", label: "ДО" },
+        { label: "ПОСЛЕ", missing: true, text: "Возможно там всё норм, но это не точно :)" },
+        { url: "https://i.pinimg.com/736x/14/fa/58/14fa58765f82544cdf722516b52d3111.jpg", localUrl: "img/points/id9_otvet.jpg", label: "ОТВЕТ ВЛАСТИ" }
+      ]
+    },
+    {
+      id: 10,
+      lat: 50.262012,
+      lng: 127.574032,
+      title: "Ненадлежащее содержание дорожной инфраструктуры (буферов)",
+      description: "Фронтальные дорожные ограждения в виде буферов заполнены менее чем на половину. Хотя, по ГОСТ должны быть наполнены до верха, чтобы снизить удар во время ДТП (на свету видно сколько в них песка).",
+      authority: "Министерство транспорта и дорожного хозяйства Амурской области",
+      status: "completed",
+      photos: [
+        { url: "https://i.pinimg.com/736x/f8/b2/07/f8b207aa3bb43babe7a75dfc600aca77.jpg", localUrl: "img/points/id10_do.jpg", label: "ДО" },
+        { label: "ПОСЛЕ", missing: true, text: "Возможно там всё норм, но это не точно :)" },
+        { url: "https://i.pinimg.com/736x/52/50/00/5250004fca3ccc9b2c81546d389fdd09.jpg", localUrl: "img/points/id10_otvet.jpg", label: "ОТВЕТ ВЛАСТИ" }
+      ]
+    },
+    {
+      id: 11,
+      lat: 50.272024,
+      lng: 127.554899,
+      title: "Демонстрация табачной продукции",
+      description: "В торговых объектах запрещена выкладка и демонстрация табачной, никотинсодержащей продукции, кальянов и устройств для потребления никотина. При этом демонстрация конкретного товара покупателю допускается только после того когда покупатель изучил весь список товара (ассортимент) и попросил конкретный товар.\n\n• Роспотребнадзор объявил предостережение.",
+      authority: "Управление Федеральной службы по надзору в сфере защиты прав потребителей и благополучия человека по Амурской области\n(Управление Роспотребнадзора по Амурской области)",
+      status: "completed",
+      photos: [
+        { url: "https://i.pinimg.com/736x/ac/ba/8e/acba8edf142bff36533a360c48020936.jpg", localUrl: "img/points/id11_do.jpg", label: "ДО" },
+        { label: "ПОСЛЕ", missing: true, text: "Изменений нет — продукция по-прежнему на витрине :(" },
+        { url: "https://i.pinimg.com/736x/b0/5b/20/b05b20b09a71cf3eb5017d13adba8825.jpg", localUrl: "img/points/id11_otvet.jpg", label: "ОТВЕТ ВЛАСТИ" },
+        { url: "https://i.pinimg.com/736x/14/30/d5/1430d519d87f5b24725001c1d9085a84.jpg", localUrl: "img/points/id11_vypiska_erp.jpg", label: "Выписка из реестра проверок (ФГИС \"ЕРП\")" }
+      ]
+    },
+    {
+      id: 12,
+      lat: 50.272114,
+      lng: 127.554713,
+      title: "Нарушение санитарных требований к организациям торговли (Пятёрочка)",
+      description: "Нарушение Санитарных правил:\n• Булочки, хлеб, ХБИ не упакованы в упаковку.\n• Повреждённые банки.\n• Не моются тележки (корзины) для самообслуживания.\n• Не моются прилавки.",
+      authority: "Управление Федеральной службы по надзору в сфере защиты прав потребителей и благополучия человека по Амурской области\n(Управление Роспотребнадзора по Амурской области)",
+      status: "not-sent",
+      photos: []
+    },
+    {
+      id: 13,
+      lat: 50.273424,
+      lng: 127.559863,
+      title: "Реализация товаров ненадлежащего качества (сыр с злокачественной плесенью)",
+      description: "В торговом объекте реализуется сыр со следами злокачественной плесени, что свидетельствует о нарушении условий хранения и требований к качеству пищевой продукции.",
+      authority: "Управление Федеральной службы по надзору в сфере защиты прав потребителей и благополучия человека по Амурской области\n(Управление Роспотребнадзора по Амурской области)",
+      status: "completed",
+      photos: [
+        { url: "https://i.pinimg.com/736x/53/4f/6c/534f6c8dc5c04e05cb5149420d9560f2.jpg", localUrl: "img/points/id13_narushenie.jpg", label: "ФОТО НАРУШЕНИЯ" },
+        { url: "https://i.pinimg.com/736x/1b/1e/df/1b1edf8089e16fa8b043bbce870d0d20.jpg", localUrl: "img/points/id13_otvet.jpg", label: "ОТВЕТ ВЛАСТИ" },
+        { url: "https://i.pinimg.com/736x/14/30/d5/1430d519d87f5b24725001c1d9085a84.jpg", localUrl: "img/points/id13_vypiska_erp.jpg", label: "Выписка из реестра проверок (ФГИС \"ЕРП\")" }
+      ]
+    },
+    {
+      id: 14,
+      lat: 50.268270,
+      lng: 127.533735,
+      title: "Признаки реализации немаркированной продукции (непередача сведений в ГИС МТ «Честный знак»)",
+      description: "Магазин \"Полигон-Амур\" продал берет, который по базе «Честный знак» уже был продан раньше (через маркетплейс), а обратно в оборот его не вернул. Для системы он числится немаркированным — за это и выдали предостережение.",
+      authority: "Управление Федеральной службы по надзору в сфере защиты прав потребителей и благополучия человека по Амурской области\n(Управление Роспотребнадзора по Амурской области)",
+      status: "completed",
+      photos: [
+        { url: "https://i.pinimg.com/736x/d6/80/7f/d6807fec7151c569a7545faea498634f.jpg", localUrl: "img/points/id14_narushenie.jpg", label: "ФОТО НАРУШЕНИЯ" },
+        { url: "https://i.pinimg.com/736x/4b/54/c2/4b54c2f91bbe32d9e247852d0e7052b2.jpg", localUrl: "img/points/id14_vypiska_erp.jpg", label: "Выписка из реестра проверок (ФГИС \"ЕРП\")" }
+      ]
+    },
+    {
+      id: 15,
+      lat: 50.280610,
+      lng: 127.510241,
+      title: "Продажа товаров лёгкой промышленности с недостоверной информацией о составе ткани",
+      description: "ИП продал рубашку, где составы на этикетке и в ГИС МТ \"Честный знак\" расходятся.",
+      authority: "Управление Федеральной службы по надзору в сфере защиты прав потребителей и благополучия человека по Амурской области\n(Управление Роспотребнадзора по Амурской области)",
+      status: "completed",
+      photos: [
+        { url: "https://i.pinimg.com/736x/c3/e4/ac/c3e4ac9a70e6a272f83602d6870bc73e.jpg", localUrl: "img/points/id15_sostav_rubashka.jpg", label: "Состав на рубашке" },
+        { url: "https://i.pinimg.com/736x/1b/54/6c/1b546ced205b9f178fc82784b0b75657.jpg", localUrl: "img/points/id15_sostav_chestnyi_znak.jpg", label: "Состав в ГИС МТ \"Честный знак\"" },
+        { url: "https://i.pinimg.com/736x/6b/be/0a/6bbe0a728e5b182e4f2b0564f849030a.jpg", localUrl: "img/points/id15_vypiska_erp.jpg", label: "Выписка из реестра проверок (ФГИС \"ЕРП\")" }
+      ]
+    },
+    {
+      id: 16,
+      lat: 50.258681,
+      lng: 127.556894,
+      title: "Расклейка объявлений",
+      description: "Согласно Правилам благоустройства территории городского округа города Благовещенска, запрещено размещать рекламные материалы вне специально отведённых мест — в частности, на фасадах зданий, ограждениях, опорах освещения и других объектах городской инфраструктуры.",
+      authority: "Администрация города Благовещенска (Правовое управление)",
+      status: "completed",
+      photos: [
+        { url: "https://i.pinimg.com/736x/8b/3c/6a/8b3c6a74743e0fc652051e838d126aa0.jpg", localUrl: "img/points/id16_do.jpg", label: "ДО" },
+        { url: "https://i.pinimg.com/736x/5d/54/45/5d54454306cc0e6261ed4f19bcce4928.jpg", localUrl: "img/points/id16_posle.jpg", label: "ПОСЛЕ (фото сделано администрацией)" },
+        { localUrl: "img/points/id16_otvet.jpg", label: "ОТВЕТ ВЛАСТИ" }
+      ]
+    },
+    {
+      id: 17,
+      lat: 50.269013,
+      lng: 127.529337,
+      title: "Ненадлежащее содержание общественного транспорта",
+      description: "На борте автобуса ПАЗ \"Vector Next\" отпали буквы. Должна быть надпись \"Транспорт меняется\".",
+      authority: "Администрация города Благовещенска (Управление транспорта)",
+      status: "completed",
+      photos: [
+        { url: "https://i.pinimg.com/736x/0f/3c/6c/0f3c6c65f9781add3e4d4ff19487b8b5.jpg", localUrl: "img/points/id17_do.jpg", label: "ДО" },
+        { url: "https://i.pinimg.com/736x/54/e9/70/54e970839c38031ae7ecf70ac441d5a5.jpg", localUrl: "img/points/id17_otvet.jpg", label: "ОТВЕТ ВЛАСТИ" }
+      ]
+    }
+  ];
+
+  // ===================== СВЯЗАННЫЕ ОБРАЩЕНИЯ =====================
+  var linkedComplaints = [
+    {
+      id: 101,
+      title: "СВЯЗАННОЕ ОБРАЩЕНИЕ Роскомнадзор",
+      authority: "Управление Федеральной службы по надзору в сфере связи, информационных технологий и массовых коммуникаций по Амурской области\n(Управление Роскомнадзора по Амурской области)",
+      description: "Мои ФИО и почта оказались в одном файле-ответе с данными третьего лица, и этот файл получил не только я, но и третье лицо, получается, он узнал мои персональные данные без моего согласия, что прямо запрещено законом о персональных данных (152-ФЗ).\n\nP. S. Роскомнадзор обязал администрацию провести разъяснительную беседу с сотрудниками. Разъяснительная беседа с сотрудниками администрации проведена.",
+      status: "completed",
+      photos: [
+        { url: "https://i.pinimg.com/736x/d5/91/e4/d591e436f177b0617138bba0bdedaae9.jpg", localUrl: "img/points/id4_otvet.jpg", label: "Ответ, на который написана жб" },
+        { url: "https://i.pinimg.com/736x/cc/20/54/cc2054c1483ee31fab3a3ac5c80c7d9e.jpg", localUrl: "img/points/id101_otvet_rkn.jpg", label: "Ответ Роскомнадзора" }
+      ]
+    },
+    {
+      id: 102,
+      title: "СВЯЗАННОЕ ОБРАЩЕНИЕ Прокуратура",
+      authority: "Прокуратура города Благовещенска",
+      description: "Нарушения со стороны администрации в ответе:\n• Нет ответа по существу поставленных вопросов, а так же отсутствуют ответы на них\n• Объединение моего обращения (по поводу вывесок OZON) с обращением третьего лица (по поводу блоков кондиционеров), хотя темы не связаны между собой.\n• В ответе указано что вывески демонтированы (во мн. ч.) хотя по факту демонтирована лишь одна.\n\n• Прокуратура, проведя проверку, признала, что ответ администрации содержит неполную и недостоверную информацию. В адрес заместителя мэра вынесено представление — он обязан устранить нарушение.\n• Администрация направила новый ответ, после представления прокуратуры.",
+      status: "completed",
+      photos: [
+        { url: "https://i.pinimg.com/736x/d5/91/e4/d591e436f177b0617138bba0bdedaae9.jpg", localUrl: "img/points/id4_otvet.jpg", label: "Ответ, на который написана жб" },
+        { url: "https://i.pinimg.com/736x/02/db/08/02db08ccdc4b896bcce83fb687794f02.jpg", localUrl: "img/points/id102_otvet_prokuratura.jpg", label: "Ответ прокуратуры" },
+        { url: "https://i.pinimg.com/736x/c3/f7/04/c3f7041149a60d3c684af90af7671d82.jpg", localUrl: "img/points/id102_otchet.jpg", label: "Отчёт рассмотрения представления" }
+      ]
+    }
+  ];
+
+  // ===================== КАРТА =====================
+  var map = L.map('map').setView([50.27, 127.55], 14);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+  }).addTo(map);
+
+  function getIcon(status) {
+    var iconUrl;
+    if (status === 'completed') {
+      iconUrl = 'https://cdn.jsdelivr.net/gh/pointhi/leaflet-color-markers@master/img/marker-icon-green.png';
+    } else if (status === 'not-sent') {
+      iconUrl = 'https://cdn.jsdelivr.net/gh/pointhi/leaflet-color-markers@master/img/marker-icon-grey.png';
+    } else {
+      iconUrl = 'https://cdn.jsdelivr.net/gh/pointhi/leaflet-color-markers@master/img/marker-icon-orange.png';
+    }
+    return L.icon({
+      iconUrl: iconUrl,
+      shadowUrl: 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/marker-shadow.png',
+      iconSize: [25, 41],
+      iconAnchor: [12, 41]
+    });
+  }
+
+  var markers = L.markerClusterGroup({
+    maxClusterRadius: 15,
+    zoomToBoundsOnClick: true,
+    spiderfyOnMaxZoom: false,
+    showCoverageOnHover: false
+  });
+
+  var historyStack = [];
+
+  function getLinkedComplaintById(id) {
+    return linkedComplaints.find(function(item) { return item.id === id; });
+  }
+
+  // ФУНКЦИЯ ВЫБОРА ИСТОЧНИКА ФОТО
+  function getPhotoUrl(item) {
+    var src = localStorage.getItem('photoSource') || 'pinterest';
+    if (src === 'local' && item.localUrl) return item.localUrl;
+    if (item.url) return item.url;
+    return item.localUrl || '';
+  }
+
+  function renderDetails(data) {
+    document.getElementById('detail-title').innerText = data.title;
+    document.getElementById('detail-description').innerText = data.description;
+
+    var authorityContainer = document.getElementById('detail-authority');
+    if (data.authority && data.authority.length > 0) {
+      authorityContainer.innerText = '🏛️ Рассмотрел: ' + data.authority;
+      authorityContainer.style.display = 'inline-block';
+    } else {
+      authorityContainer.style.display = 'none';
+    }
+
+    var photosContainer = document.getElementById('detail-photos');
+    photosContainer.innerHTML = '';
+    if (data.photos && data.photos.length > 0) {
+      data.photos.forEach(function(item) {
+        var div = document.createElement('div');
+        div.className = 'photo-item';
+
+        if (item.url || item.localUrl) {
+          var img = document.createElement('img');
+          img.src = getPhotoUrl(item);
+          img.alt = item.label;
+          img.onclick = function(e) {
+            e.stopPropagation();
+            openLightbox(getPhotoUrl(item));
+          };
+          div.appendChild(img);
+        } else if (item.missing) {
+          var placeholder = document.createElement('div');
+          placeholder.style.cssText = 'width:100%;height:100px;background:#f5f5f5;border-radius:8px;display:flex;align-items:center;justify-content:center;text-align:center;padding:10px;color:#999;font-style:italic;';
+          placeholder.innerText = item.text || 'Фото отсутствует';
+          div.appendChild(placeholder);
+        }
+
+        var label = document.createElement('div');
+        label.className = item.missing ? 'label-missing' : 'label';
+        label.innerText = item.label || '';
+        div.appendChild(label);
+
+        photosContainer.appendChild(div);
+      });
+    } else {
+      photosContainer.innerHTML = '<p>Фотографии отсутствуют</p>';
+    }
+
+    var statusContainer = document.getElementById('detail-status');
+    statusContainer.innerHTML = '';
+    var badge = document.createElement('span');
+    badge.className = 'status-badge ';
+    if (data.status === 'completed') {
+      badge.classList.add('status-completed');
+      badge.innerText = '✅ Завершено';
+    } else if (data.status === 'not-sent') {
+      badge.classList.add('status-not-sent');
+      badge.innerText = '⏳ Не отправлено';
+    } else {
+      badge.classList.add('status-in-progress');
+      badge.innerText = '🟠 В процессе';
+    }
+    statusContainer.appendChild(badge);
+
+    var linkedSection = document.getElementById('linked-section');
+    linkedSection.innerHTML = '';
+    if (data.linkedIds && data.linkedIds.length > 0) {
+      var title = document.createElement('div');
+      title.style.fontWeight = 'bold';
+      title.style.marginBottom = '10px';
+      title.innerText = 'Связанные обращения:';
+      linkedSection.appendChild(title);
+
+      data.linkedIds.forEach(function(id) {
+        var linked = getLinkedComplaintById(id);
+        if (linked) {
+          var btn = document.createElement('button');
+          btn.className = 'linked-btn';
+          if (id === 101) btn.innerText = 'СВЯЗАННОЕ ОБРАЩЕНИЕ Роскомнадзор';
+          else if (id === 102) btn.innerText = 'СВЯЗАННОЕ ОБРАЩЕНИЕ Прокуратура';
+          else btn.innerText = linked.title;
+          btn.onclick = function() { openPanel(linked, true); };
+          linkedSection.appendChild(btn);
+        }
+      });
+    }
+
+    var backBtn = document.getElementById('back-btn');
+    backBtn.innerText = (historyStack.length > 1) ? '⬅ Назад' : '✕ Закрыть';
+
+    document.getElementById('details-panel').style.display = 'block';
+    document.body.style.overflow = 'hidden';
+  }
+
+  function openPanel(data, pushHistory) {
+    if (pushHistory) {
+      if (historyStack.length === 0 || historyStack[historyStack.length-1].id !== data.id) {
+        historyStack.push(data);
+      }
+    }
+    renderDetails(data);
+  }
+
+  function goBack() {
+    if (historyStack.length > 1) {
+      historyStack.pop();
+      renderDetails(historyStack[historyStack.length-1]);
+    } else {
+      closePanel();
+    }
+  }
+
+  function closePanel() {
+    document.getElementById('details-panel').style.display = 'none';
+    document.body.style.overflow = 'auto';
+    historyStack = [];
+  }
+
+  function openLightbox(imgSrc) {
+    document.getElementById('lightbox-img').src = imgSrc;
+    document.getElementById('lightbox').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeLightbox() {
+    document.getElementById('lightbox').style.display = 'none';
+    document.body.style.overflow = 'auto';
+  }
+
+  violations.forEach(function(item) {
+    var marker = L.marker([item.lat, item.lng], { icon: getIcon(item.status), status: item.status });
+
+    // Точка 2 (военкомат) отображается, но не реагирует на клик
+    if (item.id !== 2) {
+      marker.on('click', function() {
+        historyStack = [];
+        openPanel(item, true);
+      });
+    }
+
+    markers.addLayer(marker);
+  });
+
+  map.addLayer(markers);
+
+  var defaultCenter = [50.27, 127.55];
+  var defaultZoom = 14;
+  var poyarkovoCenter = [49.621612, 128.631080];
+  var poyarkovoZoom = 17;
+
+  var btnToPoyarkovo = document.getElementById('btn-to-poyarkovo');
+  var btnBack = document.getElementById('btn-back');
+
+  function flyToPoyarkovo() {
+    map.flyTo(poyarkovoCenter, poyarkovoZoom, { duration: 1.5 });
+    btnToPoyarkovo.classList.remove('show');
+    btnBack.classList.add('show');
+  }
+
+  function flyBack() {
+    map.flyTo(defaultCenter, defaultZoom, { duration: 1.5 });
+    btnBack.classList.remove('show');
+    setTimeout(function() {
+      var center = map.getCenter();
+      var dist = map.distance(center, L.latLng(defaultCenter));
+      if (dist > 5000) {
+        btnToPoyarkovo.classList.add('show');
+      }
+    }, 2000);
+  }
+
+  btnToPoyarkovo.addEventListener('click', flyToPoyarkovo);
+  btnBack.addEventListener('click', flyBack);
+
+  map.on('moveend', function() {
+    var center = map.getCenter();
+    var distFromDefault = map.distance(center, L.latLng(defaultCenter));
+    var distFromPoyarkovo = map.distance(center, L.latLng(poyarkovoCenter));
+
+    if (distFromPoyarkovo < 1000 && !btnBack.classList.contains('show')) {
+      btnBack.classList.add('show');
+      btnToPoyarkovo.classList.remove('show');
+    } else if (distFromDefault < 5000 && btnBack.classList.contains('show')) {
+      btnBack.classList.remove('show');
+      btnToPoyarkovo.classList.remove('show');
+    } else if (distFromDefault > 5000 && !btnBack.classList.contains('show')) {
+      btnToPoyarkovo.classList.add('show');
+    }
+  });
+
+  console.log('Карта готова! Всего точек: ' + violations.length);
+</script>
+</body>
+</html>
